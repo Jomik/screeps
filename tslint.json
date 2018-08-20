@@ -1,0 +1,16 @@
+{
+  "rulesDirectory": "tslint-plugin-prettier",
+  "extends": ["tslint:recommended", "tslint-config-prettier"],
+  "rules": {
+    "no-console": false,
+    "interface-name": false,
+    "no-string-literal": false,
+    "ordered-imports": false,
+    "variable-name": [
+      true,
+      "ban-keywords",
+      "check-format",
+      "allow-leading-underscore"
+    ]
+  }
+}
