@@ -10,7 +10,6 @@
     "push:main": "rollup -c --environment DEST:main",
     "push:private": "rollup -c --environment DEST:private",
     "push:sim": "rollup -c --environment DEST:sim",
-    "test": "echo \"Error: no test specified\" && exit 1",
     "watch:main": "rollup -cw --environment DEST:main",
     "watch:private": "rollup -cw --environment DEST:private",
     "watch:sim": "rollup -cw --environment DEST:sim"

@@ -6,6 +6,7 @@
     "interface-name": false,
     "no-string-literal": false,
     "ordered-imports": false,
+    "member-ordering": false,
     "variable-name": [
       true,
       "ban-keywords",
