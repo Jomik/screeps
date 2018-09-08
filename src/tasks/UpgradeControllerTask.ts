@@ -11,11 +11,18 @@ export class UpgradeControllerTask extends Task<StructureController> {
 
   public perform(creep: Creep): MissionProgress {
     return creep.upgradeController(this.target!) === OK
-      ? { upgraded: creep.carry.energy }
+      ? {
+          upgraded: Math.min(
+            creep.getActiveBodyparts(WORK) * 2,
+            creep.carry.energy
+          )
+        }
       : {};
   }
 
   public estimateProgress(creep: Creep): MissionProgress {
-    return { upgraded: creep.carry.energy };
+    return {
+      upgraded: Math.min(creep.getActiveBodyparts(WORK) * 2, creep.carry.energy)
+    };
   }
 }

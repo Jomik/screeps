@@ -4,8 +4,23 @@ export class Government {
   private colonies: Colony[] = [];
 
   public initialize() {
-    this.colonies.push(new Colony(Game.rooms["W8N3"]));
-    _.forEach(Memory.creeps, (m) => (m.mission = null));
+    _.forEach(Game.rooms, (r) => {
+      const c = r.controller;
+      if (c !== undefined) {
+        if (c.my) {
+          this.addColony(r);
+        }
+      }
+    });
+    _.forEach(Game.creeps, (c) => {
+      c.memory.mission = null;
+    });
+  }
+
+  public addColony(room: Room) {
+    if (!this.colonies.some((c) => c.room.name === room.name)) {
+      this.colonies.push(new Colony(room));
+    }
   }
 
   public clean() {

@@ -20,7 +20,7 @@ export class TransferTask extends Task<StructureSpawn> {
   public postCondition(creep: Creep): boolean {
     return (
       creep.carry.energy === 0 ||
-      this.target!.energyCapacity - this.target!.energy === 0
+      this.target!.energy === this.target!.energyCapacity
     );
   }
 
@@ -30,7 +30,7 @@ export class TransferTask extends Task<StructureSpawn> {
     if (capacity > 0) {
       const amount = Math.min(creep.carry.energy, capacity);
       if (creep.transfer(this.target!, RESOURCE_ENERGY, amount) === OK) {
-        tc.energy -= amount;
+        tc.energy += amount;
         return { transfered: amount };
       }
     }

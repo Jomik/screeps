@@ -1,25 +1,24 @@
 import { Task } from "tasks/Task";
 
+export const enum Priority {
+  OPTIONAL,
+  ESSENTIAL,
+  CRITICAL
+}
+
 export abstract class Mission {
-  public readonly maxSquadSize: number;
-  public readonly id: string;
   public get squadSize(): number {
     return this.squad.length;
   }
+  public progress: MissionProgress = {};
 
-  private progress: MissionProgress = {};
   private squad: string[] = [];
-  private tasks: Array<Task<RoomObject>>;
 
   constructor(
-    id: string,
-    tasks: Array<Task<RoomObject>>,
-    maxSquadSize: number = 1
-  ) {
-    this.id = id;
-    this.tasks = tasks;
-    this.maxSquadSize = maxSquadSize;
-  }
+    public readonly id: string,
+    private tasks: Array<Task<RoomObject>>,
+    public readonly maxSquadSize: number = 1
+  ) {}
 
   public clean() {
     _.remove(
@@ -33,14 +32,15 @@ export abstract class Mission {
 
   public update() {
     for (const name of this.squad) {
-      const step = Memory.creeps[name].mission!.step;
-      const task = this.tasks[step];
+      const mission = Memory.creeps[name].mission!;
+      const task = this.tasks[mission.step];
       if (task.postCondition(Game.creeps[name])) {
-        if (step + 1 >= this.tasks.length) {
-          Memory.creeps[name].mission = null;
+        if (mission.step + 1 < this.tasks.length) {
+          ++mission.step;
+        } else if (this.isComplete()) {
           this.withdraw(name);
         } else {
-          Memory.creeps[name].mission!.step = step + 1;
+          mission.step = 0;
         }
       }
     }
@@ -150,6 +150,5 @@ export abstract class Mission {
 
   public abort() {
     this.squad.forEach((n) => this.withdraw(n));
-    delete Memory.missions[this.id];
   }
 }

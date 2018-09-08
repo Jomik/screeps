@@ -1,21 +1,17 @@
 import { Headquarters } from "Headquarters";
-import { EnergyHarvestMission } from "missions/EnergyHarvestMission";
-import { TransportMission } from "missions/TransportMission";
-import { UpgradeControllerMission } from "missions/UpgradeControllerMission";
-
-let registered = false;
-let counter = -1;
 
 export class Colony {
-  public readonly headquarters: Headquarters = new Headquarters();
+  public readonly headquarters = new Headquarters(this);
+  public readonly name: string;
   public get room(): Room {
-    return Game.rooms[this._room];
+    return Game.rooms[this.name];
+  }
+  private get spawns(): StructureSpawn[] {
+    return this.room.find(FIND_MY_SPAWNS);
   }
 
-  private _room: string;
-
   constructor(room: Room) {
-    this._room = room.name;
+    this.name = room.name;
   }
 
   public clean() {
@@ -23,38 +19,19 @@ export class Colony {
   }
 
   public update() {
+    // Register new missions, etc.
     this.headquarters.update();
   }
 
   public plan() {
-    const spawn = Game.spawns["Spawn1"];
-    if (!registered) {
-      const source1 = this.room.find(FIND_SOURCES)[0];
-      const source2 = this.room.find(FIND_SOURCES)[1];
-      this.headquarters.registerMission(new EnergyHarvestMission(source1));
-      this.headquarters.registerMission(new TransportMission(source1, spawn));
-      this.headquarters.registerMission(new EnergyHarvestMission(source2));
-      this.headquarters.registerMission(
-        new UpgradeControllerMission(this.room.controller!, source2, 10)
-      );
-      registered = true;
-    }
-    if (!spawn.spawning && spawn.energy === spawn.energyCapacity) {
-      spawn.spawnCreep(
-        [WORK, WORK, CARRY, MOVE],
-        `${this._room}#${++counter}`,
-        { memory: { mission: null, colony: this._room } }
-      );
-    }
-    const creeps = _.filter(
-      Game.creeps,
-      (c) =>
-        !c.spawning &&
-        c.memory.mission === null &&
-        c.memory.colony === this._room
-    );
-    if (creeps.length > 0) {
-      this.headquarters.assignMissions(creeps);
+    for (const spawn of this.spawns) {
+      if (!spawn.spawning && spawn.energy === spawn.energyCapacity) {
+        spawn.spawnCreep(
+          [WORK, WORK, CARRY, MOVE],
+          `${this.name}#${Game.time}`,
+          { memory: { mission: null, colony: this.name } }
+        );
+      }
     }
   }
 

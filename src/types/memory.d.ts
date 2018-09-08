@@ -1,11 +1,11 @@
 interface Memory {
   missions: {
-    [id: string]: MissionMemory<any>;
+    [id: string]: MissionMemory;
   };
 }
 
-interface MissionMemory<P> {
-  progress: P;
+interface MissionMemory {
+  progress: MissionProgress;
 }
 
 interface CreepMemory {

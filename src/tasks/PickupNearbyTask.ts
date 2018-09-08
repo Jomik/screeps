@@ -9,7 +9,7 @@ export class PickupNearbyTask extends Task<RoomObject> {
     if (Game.time !== this.tick) {
       this.tick = Game.time;
       this._resource = null;
-      const t = getObjectFromReference(this._targetRef);
+      const t = getObjectFromReference(this.targetRef);
       if (t !== null) {
         const potential = t.pos.findClosestByPath(FIND_DROPPED_RESOURCES);
         if (potential !== null && t.pos.getRangeTo(potential.pos) < 9) {

@@ -1,21 +1,17 @@
 import { getObjectFromReference, getReference } from "utils";
 
 export abstract class Task<T extends RoomObject> {
-  public readonly requiredBodyPart: BodyPartConstant[];
-  public range: number;
   public get target(): T | null {
-    return getObjectFromReference(this._targetRef);
+    return getObjectFromReference(this.targetRef);
   }
-  protected _targetRef: string;
+  protected targetRef: string;
 
   constructor(
     target: T,
-    range: number,
-    requiredBodyPart: BodyPartConstant[] = []
+    public readonly range: number = 1,
+    public readonly requiredBodyPart: BodyPartConstant[] = []
   ) {
-    this._targetRef = getReference(target);
-    this.range = range;
-    this.requiredBodyPart = requiredBodyPart;
+    this.targetRef = getReference(target);
   }
 
   public get valid(): boolean {

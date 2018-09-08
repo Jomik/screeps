@@ -1,15 +1,24 @@
 import { Mission } from "missions/Mission";
+import { Colony } from "Colony";
 
 export class Headquarters {
   private missions: Mission[] = [];
-  private creeps: string[] = [];
+  private get creeps(): Creep[] {
+    return _.filter(Game.creeps, (c) => c.memory.colony === this.colony.name);
+  }
+
+  constructor(private colony: Colony) {}
 
   public clean() {
     this.missions.forEach((m) => m.clean());
   }
 
   public update() {
-    this.validateMissions();
+    for (const mission of this.missions) {
+      if (!mission.valid) {
+        mission.abort();
+      }
+    }
     this.missions.forEach((m) => m.update());
   }
 
@@ -19,6 +28,10 @@ export class Headquarters {
     }
     if (this.missions.every((m) => m.id !== mission.id)) {
       this.missions.push(mission);
+    } else {
+      throw Error(
+        `Attempting to register already registered mission: ${mission.id}`
+      );
     }
   }
 
@@ -30,21 +43,14 @@ export class Headquarters {
     }
   }
 
-  public assignMissions(creeps: Creep[]) {
+  public assignMissions() {
+    const creeps = _.filter(this.creeps, (c) => c.memory.mission === null);
     for (const c of creeps) {
       const mission = _(this.missions)
         .filter((m) => m.needsNew)
         .min((m) => m.squadSize);
       if (mission !== (Infinity as any)) {
         mission.assign(c);
-      }
-    }
-  }
-
-  public validateMissions() {
-    for (const mission of this.missions) {
-      if (!mission.valid) {
-        mission.abort();
       }
     }
   }
