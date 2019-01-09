@@ -1,10 +1,21 @@
-type PropertyNames<T, P> = {
-  [K in keyof T]: T[K] extends P ? K : never
-}[keyof T];
-
-interface MissionProgress {
-  harvested?: number;
-  pickedUp?: number;
-  transfered?: number;
-  upgraded?: number;
+interface StructureMap {
+  [STRUCTURE_EXTENSION]: StructureExtension;
+  [STRUCTURE_RAMPART]: StructureRampart;
+  [STRUCTURE_ROAD]: StructureRoad;
+  [STRUCTURE_SPAWN]: StructureSpawn;
+  [STRUCTURE_LINK]: StructureLink;
+  [STRUCTURE_WALL]: StructureWall;
+  [STRUCTURE_KEEPER_LAIR]: StructureKeeperLair;
+  [STRUCTURE_CONTROLLER]: StructureController;
+  [STRUCTURE_STORAGE]: StructureStorage;
+  [STRUCTURE_TOWER]: StructureTower;
+  [STRUCTURE_OBSERVER]: StructureObserver;
+  [STRUCTURE_POWER_BANK]: StructurePowerBank;
+  [STRUCTURE_POWER_SPAWN]: StructurePowerSpawn;
+  [STRUCTURE_EXTRACTOR]: StructureExtension;
+  [STRUCTURE_LAB]: StructureLab;
+  [STRUCTURE_TERMINAL]: StructureTerminal;
+  [STRUCTURE_CONTAINER]: StructureContainer;
+  [STRUCTURE_NUKER]: StructureNuker;
+  [STRUCTURE_PORTAL]: StructurePortal;
 }

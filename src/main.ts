@@ -1,15 +1,13 @@
-import { Government } from "Government";
-import { ErrorMapper } from "utils";
-import { cache } from "utils/Cache";
+import { Kernel } from "sys/Kernel";
+import { Scheduler } from "sys/Scheduler";
+import { programRegistry } from "sys/Registry";
 
-export const government = new Government();
-government.initialize();
+const scheduler = new Scheduler();
+const kernel = new Kernel(scheduler);
 
-export const loop = ErrorMapper.wrapLoop(() => {
-  cache.clear();
-  government.clean();
-  government.update();
-  government.plan();
-  cache.clear();
-  government.execute();
-});
+(global as any).kernel = kernel;
+(global as any).pr = programRegistry;
+
+export function loop() {
+  kernel.loop();
+};
