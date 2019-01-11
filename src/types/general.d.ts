@@ -1,3 +1,5 @@
+type Parameters<T> = T extends (...args: infer T) => any ? T : never;
+
 interface StructureMap {
   [STRUCTURE_EXTENSION]: StructureExtension;
   [STRUCTURE_RAMPART]: StructureRampart;
