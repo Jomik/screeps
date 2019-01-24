@@ -2,3 +2,5 @@ screeps.json
 node_modules/
 .rpt2_cache/
 dist/
+.direnv/
+.envrc
