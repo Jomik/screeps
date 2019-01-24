@@ -16,19 +16,28 @@ const styles = {
   [LogLevel.Warn]: "color: white",
   [LogLevel.Error]: "color: red",
   [LogLevel.Fatal]: "color: yellow; background-color: red"
-}
+};
 
 type Message = string | (() => string);
 type ErrorType = Error | (() => Error);
 
 export class Logger {
-  constructor(private readonly name: string) { }
+  constructor(private readonly name: string) {}
 
   private log(level: LogLevel, message: Message, error?: ErrorType) {
-    const log = (typeof message === "function" ? message() : message);
-    const err = error === undefined ? "" :
-      "\nError: " + ErrorMapper.sourceMappedStackTrace(typeof error === "function" ? error() : error);
-    console.log(`<log severity="${level}" style="${styles[level]}">[${level}][${this.name}] ${log}${err}</log>`);
+    const log = typeof message === "function" ? message() : message;
+    const err =
+      error === undefined
+        ? ""
+        : "\nError: " +
+          ErrorMapper.sourceMappedStackTrace(
+            typeof error === "function" ? error() : error
+          );
+    console.log(
+      `<log severity="${level}" style="${styles[level]}">[${level}][${
+        this.name
+      }] ${log}${err}</log>`
+    );
   }
 
   public debug(message: Message, error?: ErrorType) {

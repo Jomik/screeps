@@ -1,26 +1,51 @@
 import { Logger } from "sys/Logger";
 import { ProcessContext } from "sys/Kernel";
-import { Programs } from "bin";
 
 export type ProgramImage = keyof Programs;
+export type ProgramStatus = { exit: true; status: number } | { exit: false };
+export type Program<S> = (context: ProcessContext<S>) => ProgramStatus;
 
-export type ProgramStatus = { done: true; status: number } | { done: false };
-export type Program<M> =
-  (context: ProcessContext<M>) => ProgramStatus;
-export type ProgramInit<A extends any[], M> = (...args: A) => M;
-export type ProgramDescriptor<A extends any[], M> = {
-  program: Program<M>;
-  init: ProgramInit<A, M>;
+export type ProgramInit<A extends any[], S> = (...args: A) => S;
+export type ProgramDefinition<A extends any[], S> = {
+  program: Program<S>;
+  init: ProgramInit<A, S>;
+};
+export type ProgramDescriptor<S> = { program: Program<S>; state: S };
+
+export type Programs = {
+  ["hello-world"]: ProgramDefinition<[], {}>;
+  ["move-creep"]: ProgramDefinition<
+    [Creep, RoomPosition],
+    { id: string; pos: RoomPosition }
+  >;
+  ["harvest"]: ProgramDefinition<
+    [Creep, Source],
+    { creepId: string; sourceId: string }
+  >;
+  ["spawn-creep"]: ProgramDefinition<
+    [StructureSpawn, BodyPartConstant[], string],
+    {
+      spawnId: string;
+      body: BodyPartConstant[];
+      name: string;
+      didSpawn: boolean;
+    }
+  >;
 };
 
-const logger = new Logger("Registry");
-
-class ProgramRegistry {
+export class ProgramRegistry {
   private registry: Programs = {} as any;
 
-  public register<I extends ProgramImage>(image: I, program: Programs[I]["program"], init: Programs[I]["init"]): boolean {
-    this.registry[image] = { program, init } as any;
-    return true;
+  public registerProgram<I extends ProgramImage>(
+    image: I,
+    program: Programs[I]["program"],
+    init: Programs[I]["init"]
+  ) {
+    this.registerPrograms({ [image]: { program, init } });
+  }
+
+  public registerPrograms(programs: Partial<Programs>) {
+    Object.assign(this.registry, programs);
   }
 
   public getProgram<I extends ProgramImage>(image: I): Programs[I]["program"] {

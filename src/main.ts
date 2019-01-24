@@ -1,7 +1,7 @@
 import { Kernel } from "sys/Kernel";
 import { Scheduler } from "sys/Scheduler";
 import { programRegistry } from "sys/Registry";
-import { register } from "bin";
+import * as bin from "bin";
 
 const scheduler = new Scheduler();
 const kernel = new Kernel(scheduler);
@@ -9,8 +9,7 @@ const kernel = new Kernel(scheduler);
 (global as any).kernel = kernel;
 (global as any).pr = programRegistry;
 
-register();
-
+bin.register(programRegistry);
 export function loop() {
   kernel.loop();
-};
+}

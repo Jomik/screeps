@@ -1,9 +1,12 @@
 import { Scheduler } from "sys/Scheduler";
 import { Logger } from "sys/Logger";
-import { programRegistry, ProgramImage, Program, ProgramInit } from "sys/Registry";
-import { Programs } from "bin";
-
-const logger = new Logger("Kernel");
+import {
+  programRegistry,
+  ProgramImage,
+  Program,
+  ProgramInit,
+  Programs
+} from "sys/Registry";
 
 export type PID = string;
 
@@ -15,29 +18,38 @@ export type ProcessDescriptor = {
 
 export type ProcessContext<M> = {
   readonly logger: Logger;
-  memory: M;
+  state: M;
 };
 
 export type Process<M> = {
   descriptor: ProcessDescriptor;
   context: ProcessContext<M>;
-}
+};
+
+const logger = new Logger("Kernel");
 
 export class Kernel {
   private processTable: { [pid in PID]: Process<any> } = {};
   private lastPid: number = 0;
 
-  constructor(private readonly scheduler: Scheduler) { }
+  constructor(private readonly scheduler: Scheduler) {}
 
-  public startProcess<I extends ProgramImage>(image: I, parentPid?: PID, ...args: Parameters<Programs[I]["init"]>) {
+  public startProcess<I extends ProgramImage>(
+    image: I,
+    parentPid?: PID,
+    ...args: Parameters<Programs[I]["init"]>
+  ) {
     const pid = this.lastPid + 1;
     const init: ProgramInit<any, any> = programRegistry.getInit(image) as any;
     if (init !== undefined) {
       const descriptor = { pid: pid.toString(), parentPid, image };
-      const context = { memory: init(...args), logger: new Logger(`P${pid}@${image}`) };
+      const context = {
+        state: init(...args),
+        logger: new Logger(`P${pid}@${image}`)
+      };
       this.lastPid = pid;
       this.processTable[pid] = { context, descriptor };
-      logger.info(`Started process for ${image} with P${pid}`);
+      logger.info(`Started process for ${image} with ${pid}`);
       return true;
     }
 
@@ -48,18 +60,23 @@ export class Kernel {
   private runProcess(pid: PID) {
     const process = this.processTable[pid];
     if (process === undefined) {
-      logger.error(`Trying to execute unknown process P${pid}.`);
+      logger.error(`Trying to execute unknown process ${pid}.`);
       return;
     }
-    const { descriptor: { image }, context } = process;
+    const {
+      descriptor: { image },
+      context
+    } = process;
     const program: Program<any> = programRegistry.getProgram(image);
     if (program === undefined) {
-      logger.error(`Trying to execute unknown program ${image} for P${pid}.`);
+      logger.error(`Trying to execute unknown program ${image} for ${pid}.`);
       return;
     }
     const result = program(context);
-    if (result.done) {
-      logger.info(`Program ${image} for P${pid} exited with code ${result.status}`);
+    if (result.exit) {
+      logger.info(
+        `Program ${image} for ${pid} exited with code ${result.status}`
+      );
       delete this.processTable[pid];
     }
   }
