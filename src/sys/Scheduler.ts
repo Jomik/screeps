@@ -1,8 +1,8 @@
-import { PID, Process } from "sys/Kernel";
+import { PID, Process, ProcessDescriptor } from "sys/Kernel";
 
 export class Scheduler {
-  public *run(processTable: { [pid: string]: Process<any> }): Iterator<PID> {
-    const queue: PID[] = Object.keys(processTable);
+  public *run(processList: ProcessDescriptor[]): Iterator<PID> {
+    const queue: PID[] = processList.map((p) => p.pid);
     for (const pid of queue) {
       yield pid;
     }

@@ -8,11 +8,12 @@ export function register(registry: ProgramRegistry) {
   registry.registerPrograms({
     ["hello-world"]: {
       program: () => (console.log("Hello world"), success),
-      init: () => ({})
+      init: () => ({}),
+      resources: {}
     },
     ["move-creep"]: {
-      program: ({ state: { id, pos } }) => {
-        const creep = Game.getObjectById<Creep>(id);
+      program: ({ memory: { pos } }) => {
+        const creep = undefined as any;
         if (creep === null) {
           return fail;
         }
@@ -22,11 +23,12 @@ export function register(registry: ProgramRegistry) {
         }
         return { exit: true, status: result * -1 };
       },
-      init: ({ id }, pos) => ({ id: id, pos })
+      init: (pos) => ({ pos }),
+      resources: { bob: { type: "creep" } }
     },
     ["harvest"]: {
-      program: ({ state: { creepId, sourceId } }) => {
-        const creep = Game.getObjectById<Creep>(creepId);
+      program: ({ memory: { sourceId } }) => {
+        const creep = undefined as any;
         const source = Game.getObjectById<Source>(sourceId);
         if (creep === null || source === null) {
           return fail;
@@ -37,10 +39,11 @@ export function register(registry: ProgramRegistry) {
         }
         return { exit: true, status: result * -1 };
       },
-      init: (creep, source) => ({ creepId: creep.id, sourceId: source.id })
+      init: (source) => ({ sourceId: source.id }),
+      resources: { bob: { type: "creep" } }
     },
     ["spawn-creep"]: {
-      program: ({ logger, state: { spawnId, name, body, didSpawn } }) => {
+      program: ({ logger, memory: { spawnId, name, body, didSpawn } }) => {
         const spawn = Game.getObjectById<StructureSpawn>(spawnId);
         if (spawn === null) return fail;
         if (spawn.spawning === null) {

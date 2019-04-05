@@ -10,15 +10,22 @@ import {
 
 export type PID = string;
 
+export const enum ProcessState {
+  RUNNABLE,
+  SLEEPING,
+  ZOMBIE
+}
+
 export type ProcessDescriptor = {
   readonly pid: PID;
   readonly parentPid?: PID;
   readonly image: ProgramImage;
+  state: ProcessState;
 };
 
 export type ProcessContext<M> = {
   readonly logger: Logger;
-  state: M;
+  memory: M;
 };
 
 export type Process<M> = {
@@ -38,23 +45,28 @@ export class Kernel {
     image: I,
     parentPid?: PID,
     ...args: Parameters<Programs[I]["init"]>
-  ) {
+  ): PID | undefined {
     const pid = this.lastPid + 1;
     const init: ProgramInit<any, any> = programRegistry.getInit(image) as any;
     if (init !== undefined) {
-      const descriptor = { pid: pid.toString(), parentPid, image };
+      const descriptor = {
+        pid: pid.toString(),
+        parentPid,
+        image,
+        state: ProcessState.RUNNABLE
+      };
       const context = {
-        state: init(...args),
-        logger: new Logger(`P${pid}@${image}`)
+        memory: init(...args),
+        logger: new Logger(`${image}@P${pid}`)
       };
       this.lastPid = pid;
       this.processTable[pid] = { context, descriptor };
       logger.info(`Started process for ${image} with ${pid}`);
-      return true;
+      return descriptor.pid;
     }
 
     logger.warn(`Could not start process for ${image}`);
-    return false;
+    return undefined;
   }
 
   private runProcess(pid: PID) {
@@ -82,7 +94,9 @@ export class Kernel {
   }
 
   public loop() {
-    const scheduledProcesses = this.scheduler.run(this.processTable);
+    const scheduledProcesses = this.scheduler.run(
+      Object.values(this.processTable).map((p) => p.descriptor)
+    );
     let next = scheduledProcesses.next();
     while (!next.done) {
       const pid = next.value;
