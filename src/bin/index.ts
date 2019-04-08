@@ -8,8 +8,7 @@ export function register(registry: ProgramRegistry) {
   registry.registerPrograms({
     ["hello-world"]: {
       program: () => (console.log("Hello world"), success),
-      init: () => ({}),
-      resources: {}
+      init: () => ({})
     },
     ["move-creep"]: {
       program: ({ memory: { pos } }) => {
@@ -23,8 +22,7 @@ export function register(registry: ProgramRegistry) {
         }
         return { exit: true, status: result * -1 };
       },
-      init: (pos) => ({ pos }),
-      resources: { bob: { type: "creep" } }
+      init: (creep, pos) => ({ id: creep.id, pos })
     },
     ["harvest"]: {
       program: ({ memory: { sourceId } }) => {
@@ -39,8 +37,7 @@ export function register(registry: ProgramRegistry) {
         }
         return { exit: true, status: result * -1 };
       },
-      init: (source) => ({ sourceId: source.id }),
-      resources: { bob: { type: "creep" } }
+      init: (creep, source) => ({ creepId: creep.id, sourceId: source.id })
     },
     ["spawn-creep"]: {
       program: ({ logger, memory: { spawnId, name, body, didSpawn } }) => {
@@ -74,3 +71,4 @@ export function register(registry: ProgramRegistry) {
     }
   });
 }
+
