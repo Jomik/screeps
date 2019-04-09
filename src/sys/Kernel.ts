@@ -8,7 +8,7 @@ import {
   Programs
 } from "sys/Registry";
 
-export type PID = string;
+export type PID = number;
 
 export const enum ProcessState {
   RUNNABLE,
@@ -18,7 +18,7 @@ export const enum ProcessState {
 
 export type ProcessDescriptor = {
   readonly pid: PID;
-  readonly parentPid?: PID;
+  readonly ppid: PID;
   readonly image: ProgramImage;
   state: ProcessState;
 };
@@ -38,21 +38,21 @@ const logger = new Logger("Kernel");
 export class Kernel {
   private processTable: { [pid in PID]: Process<any> } = {};
   private lastPid: number = 0;
+  private currentPid: number = 0;
 
   constructor(private readonly scheduler: Scheduler) {}
 
   public startProcess<I extends ProgramImage>(
     image: I,
-    parentPid?: PID,
     ...args: Parameters<Programs[I]["init"]>
   ): PID | undefined {
     const pid = this.lastPid + 1;
     const init: ProgramInit<any, any> = programRegistry.getInit(image) as any;
     if (init !== undefined) {
       const descriptor = {
-        pid: pid.toString(),
-        parentPid,
+        pid,
         image,
+        ppid: this.currentPid,
         state: ProcessState.RUNNABLE
       };
       const context = {
@@ -100,6 +100,7 @@ export class Kernel {
     let next = scheduledProcesses.next();
     while (!next.done) {
       const pid = next.value;
+      this.currentPid = pid;
       const start = Game.cpu.getUsed();
       this.runProcess(pid);
       const used = Game.cpu.getUsed() - start;

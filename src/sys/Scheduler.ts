@@ -6,5 +6,6 @@ export class Scheduler {
     for (const pid of queue) {
       yield pid;
     }
+    return 0;
   }
 }

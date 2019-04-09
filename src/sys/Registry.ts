@@ -1,4 +1,7 @@
 import { ProcessContext } from "sys/Kernel";
+import { programs } from "bin";
+
+export type Programs = typeof programs;
 
 export type ProgramImage = keyof Programs;
 export type ProgramStatus = { exit: true; status: number } | { exit: false };
@@ -11,40 +14,15 @@ export type ProgramDefinition<A extends any[], M> = {
 };
 export type ProgramDescriptor<M> = { program: Program<M>; memory: M };
 
-export type Programs = {
-  ["hello-world"]: ProgramDefinition<[], {}>;
-  ["move-creep"]: ProgramDefinition<
-    [Creep, RoomPosition],
-    { id: string; pos: RoomPosition }
-  >;
-  ["harvest"]: ProgramDefinition<
-    [Creep, Source],
-    { creepId: string; sourceId: string }
-  >;
-  ["spawn-creep"]: ProgramDefinition<
-    [StructureSpawn, BodyPartConstant[], string],
-    {
-      spawnId: string;
-      body: BodyPartConstant[];
-      name: string;
-      didSpawn: boolean;
-    }
-  >;
-};
-
 export class ProgramRegistry {
-  private registry: Programs = {} as any;
+  private registry: Programs = programs;
 
   public registerProgram<I extends ProgramImage>(
     image: I,
     program: Programs[I]["program"],
     init: Programs[I]["init"]
   ) {
-    this.registerPrograms({ [image]: { program, init } });
-  }
-
-  public registerPrograms(programs: Partial<Programs>) {
-    Object.assign(this.registry, programs);
+    this.registry[image] = { program, init } as Programs[I];
   }
 
   public getProgram<I extends ProgramImage>(image: I): Programs[I]["program"] {
@@ -57,3 +35,4 @@ export class ProgramRegistry {
 }
 
 export const programRegistry = new ProgramRegistry();
+
