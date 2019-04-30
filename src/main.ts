@@ -1,15 +1,12 @@
-import { Kernel } from "sys/Kernel";
-import { Scheduler } from "sys/Scheduler";
+import { kernel } from "sys/Kernel";
 import { programRegistry } from "sys/Registry";
-import * as bin from "bin";
-
-const scheduler = new Scheduler();
-const kernel = new Kernel(scheduler);
+import { scheduler } from "sys/Scheduler";
+import { ErrorMapper } from "utils";
 
 (global as any).kernel = kernel;
+(global as any).scheduler = scheduler;
 (global as any).pr = programRegistry;
 
-bin.register(programRegistry);
-export function loop() {
+export const loop = ErrorMapper.wrapLoop(() => {
   kernel.loop();
-}
+});

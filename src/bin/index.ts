@@ -1,41 +1,32 @@
-import {
-  ProgramStatus,
-  ProgramDefinition,
-  Program,
-  ProgramInit
-} from "sys/Registry";
-
-const success: ProgramStatus = { exit: true, status: 0 };
-const fail: ProgramStatus = { exit: true, status: 1 };
-const wait: ProgramStatus = { exit: false };
-
-function program<A extends any[], M extends object>(
-  init: ProgramInit<A, M>,
-  program: Program<M>
-): ProgramDefinition<A, M> {
-  return {
-    program,
-    init
-  };
-}
+import { program } from "sys/Registry";
+import { exit, sleep, wait, spawn } from "sys/Kernel";
 
 export const programs = {
+  ["init"]: program(
+    () => ({}),
+    () => {
+      return wait();
+    }
+  ),
   ["hello-world"]: program(
     () => ({}),
-    () => (console.log("Hello world"), success)
+    () => (console.log("Hello world"), exit(0))
   ),
   ["move-creep"]: program(
-    (creep: Creep, pos: RoomPosition) => ({ id: creep.id, pos }),
-    ({ memory: { pos } }) => {
-      const creep = undefined as any;
+    (creep: Creep, pos: RoomPosition) => ({
+      id: creep.id,
+      pos
+    }),
+    ({ id, pos }) => {
+      const creep = Game.getObjectById<Creep>(id);
       if (creep === null) {
-        return fail;
+        return exit(1);
       }
       const result = creep.moveTo(pos);
       if (result === OK || result === ERR_TIRED) {
-        return wait;
+        return sleep(1);
       }
-      return { exit: true, status: result * -1 };
+      return exit(result * -1);
     }
   ),
   ["harvest"]: program(
@@ -43,17 +34,17 @@ export const programs = {
       creepId: creep.id,
       sourceId: source.id
     }),
-    ({ memory: { creepId, sourceId } }) => {
+    ({ creepId, sourceId }) => {
       const creep = Game.getObjectById<Creep>(creepId);
       const source = Game.getObjectById<Source>(sourceId);
       if (creep === null || source === null) {
-        return fail;
+        return exit(1);
       }
       const result = creep.harvest(source);
       if (result === OK || result === ERR_TIRED) {
-        return wait;
+        return sleep(1);
       }
-      return { exit: true, status: result * -1 };
+      return exit(result * -1);
     }
   ),
   ["spawn-creep"]: program(
@@ -63,24 +54,24 @@ export const programs = {
       name,
       didSpawn: false
     }),
-    ({ logger, memory: { spawnId, name, body, didSpawn } }) => {
+    (memory) => {
+      const { spawnId, name, body, didSpawn } = memory;
       const spawn = Game.getObjectById<StructureSpawn>(spawnId);
-      if (spawn === null) return fail;
+      if (spawn === null) return exit(1);
       if (spawn.spawning === null) {
         if (didSpawn) {
-          logger.info(`Spawned ${name} with id ${Game.creeps[name].id}`);
-          return success;
+          // logger.info(`Spawned ${name} with id ${Game.creeps[name].id}`);
+          return exit(0);
         } else {
           const result = spawn.spawnCreep(body, name);
           if (result === OK) {
-            didSpawn = true;
+            memory.didSpawn = true;
           } else if (result !== ERR_BUSY) {
-            return { exit: true, status: result * -1 };
+            return exit(result * -1);
           }
         }
       }
-      return wait;
+      return sleep(1);
     }
   )
 };
-

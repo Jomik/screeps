@@ -1,12 +1,13 @@
-import { Scheduler } from "sys/Scheduler";
 import { Logger } from "sys/Logger";
 import {
-  programRegistry,
   ProgramImage,
-  Program,
   ProgramInit,
-  Programs
+  programRegistry,
+  ProgramRun,
+  Programs,
+  ProgramSignalHandlers
 } from "sys/Registry";
+import { scheduler } from "sys/Scheduler";
 
 export type PID = number;
 
@@ -18,89 +19,206 @@ export const enum ProcessState {
 
 export type ProcessDescriptor = {
   readonly pid: PID;
-  readonly ppid: PID;
+  ppid: PID;
   readonly image: ProgramImage;
-  state: ProcessState;
+  status: ProcessStatus;
 };
 
-export type ProcessContext<M> = {
-  readonly logger: Logger;
-  memory: M;
+export type ProcessStatus =
+  | { state: ProcessState.RUNNABLE }
+  | { state: ProcessState.SLEEPING; duration?: number }
+  | { state: ProcessState.ZOMBIE; status: number };
+
+export type Signals = {
+  SIGCHLD: { pid: PID };
 };
 
-export type Process<M> = {
-  descriptor: ProcessDescriptor;
-  context: ProcessContext<M>;
+export type Signal<S extends keyof Signals> = Signals[S] & {
+  kind: S;
 };
 
-const logger = new Logger("Kernel");
+// Terminate process
+export function exit(status: number): ProcessStatus {
+  return { state: ProcessState.ZOMBIE, status };
+}
 
-export class Kernel {
-  private processTable: { [pid in PID]: Process<any> } = {};
+export function awaken(): ProcessStatus {
+  return { state: ProcessState.RUNNABLE };
+}
+
+// Sleep until awoken by child termination
+export function wait(): ProcessStatus {
+  return { state: ProcessState.SLEEPING };
+}
+
+// Sleep for duration ticks
+export function sleep(duration: number): ProcessStatus {
+  return { state: ProcessState.SLEEPING, duration };
+}
+
+export function spawn<I extends ProgramImage>(
+  image: I,
+  ...args: Parameters<Programs[I]["init"]>
+): PID {
+  return kernel.startProcess(image, ...args);
+}
+
+function justRespawned() {
+  if (Object.values(Game.spawns).length != 1) {
+    return false;
+  }
+  const spawn = Object.values(Game.spawns)[0];
+  const creeps = Object.values(Game.creeps);
+  return (
+    spawn.room.controller!.safeMode === 19999 &&
+    _.all(creeps, (c) => c.spawning)
+  );
+}
+
+const defaultSignalHandlers: ProgramSignalHandlers<any> = {
+  SIGCHLD: () => {}
+};
+
+class Kernel {
+  get processTable(): { [pid in PID]: ProcessDescriptor } {
+    return Memory.processTable;
+  }
+
+  private get memoryPages(): { [pid in PID]: any } {
+    return Memory.memoryPages;
+  }
+
+  private get signals(): { [pid in PID]: Array<Signal<keyof Signals>> } {
+    return Memory.signals;
+  }
+
   private lastPid: number = 0;
-  private currentPid: number = 0;
+  private _currentPid: number = 0;
+  private logger = new Logger("Kernel");
 
-  constructor(private readonly scheduler: Scheduler) {}
+  public get currentPid(): number {
+    return this._currentPid;
+  }
+
+  constructor() {
+    if (justRespawned()) {
+      Memory.memoryPages = {};
+      Memory.processTable = {};
+      Memory.signals = {};
+      this.startProcess("init");
+    } else {
+      const descriptors = Object.values(this.processTable);
+      this.lastPid = Math.max(0, ...descriptors.map((p) => p.pid));
+    }
+  }
 
   public startProcess<I extends ProgramImage>(
     image: I,
     ...args: Parameters<Programs[I]["init"]>
-  ): PID | undefined {
+  ): PID {
     const pid = this.lastPid + 1;
     const init: ProgramInit<any, any> = programRegistry.getInit(image) as any;
-    if (init !== undefined) {
-      const descriptor = {
-        pid,
-        image,
-        ppid: this.currentPid,
-        state: ProcessState.RUNNABLE
-      };
-      const context = {
-        memory: init(...args),
-        logger: new Logger(`${image}@P${pid}`)
-      };
-      this.lastPid = pid;
-      this.processTable[pid] = { context, descriptor };
-      logger.info(`Started process for ${image} with ${pid}`);
-      return descriptor.pid;
+
+    if (init === undefined) {
+      throw `Could not start process for ${image}`;
     }
 
-    logger.warn(`Could not start process for ${image}`);
-    return undefined;
+    const descriptor: ProcessDescriptor = {
+      pid,
+      image,
+      ppid: this.currentPid,
+      status: { state: ProcessState.RUNNABLE }
+    };
+    const memory = init(...args);
+    this.lastPid = pid;
+    this.processTable[pid] = descriptor;
+    this.memoryPages[pid] = memory;
+    this.logger.info(`Started ${image} process with ${pid}`);
+    return descriptor.pid;
   }
 
   private runProcess(pid: PID) {
     const process = this.processTable[pid];
+
     if (process === undefined) {
-      logger.error(`Trying to execute unknown process ${pid}.`);
+      this.logger.error(`Trying to execute unknown process ${pid}.`);
       return;
     }
-    const {
-      descriptor: { image },
-      context
-    } = process;
-    const program: Program<any> = programRegistry.getProgram(image);
+
+    const { image, ppid } = process;
+    const memory = this.memoryPages[pid];
+
+    // Handle pending signals
+    if (this.signals[pid] !== undefined) {
+      let s = this.signals[pid].shift();
+      while (s !== undefined) {
+        const signalHandler =
+          programRegistry.getSignalHandler(image, s.kind) ||
+          defaultSignalHandlers[s.kind];
+        signalHandler(s, memory);
+        if (s.kind === "SIGCHLD") {
+          delete this.processTable[s.pid];
+          delete this.memoryPages[s.pid];
+        }
+        s = this.signals[pid].shift();
+      }
+      delete this.signals[pid];
+    }
+
+    // Handle running the process
+    const program: ProgramRun<any> = programRegistry.getRun(image);
     if (program === undefined) {
-      logger.error(`Trying to execute unknown program ${image} for ${pid}.`);
+      this.logger.error(
+        `Trying to execute unknown program ${image} for ${pid}.`
+      );
       return;
     }
-    const result = program(context);
-    if (result.exit) {
-      logger.info(
-        `Program ${image} for ${pid} exited with code ${result.status}`
-      );
-      delete this.processTable[pid];
+
+    const result = program(memory);
+    this.processTable[pid].status = result;
+
+    // Signal if zombie
+    if (result.state === ProcessState.ZOMBIE) {
+      Object.values(this.processTable).forEach((descriptor) => {
+        if (descriptor.ppid === pid) {
+          // TODO Set to init instead of kernel.
+          descriptor.ppid = 0;
+        }
+      });
+      // TODO We should not need this check.
+      if (ppid === 0) {
+        delete this.processTable[pid];
+        delete this.memoryPages[pid];
+      } else {
+        if (this.signals[ppid] === undefined) {
+          this.signals[ppid] = [];
+        }
+        this.signals[ppid].push({ kind: "SIGCHLD", pid });
+        this.processTable[ppid].status = awaken();
+      }
     }
   }
 
   public loop() {
-    const scheduledProcesses = this.scheduler.run(
-      Object.values(this.processTable).map((p) => p.descriptor)
-    );
+    Object.values(this.processTable).forEach((descriptor) => {
+      const { status } = descriptor;
+      if (status.state === ProcessState.SLEEPING) {
+        const { duration } = status;
+        if (duration !== undefined) {
+          if (duration === 0) {
+            descriptor.status = awaken();
+          } else {
+            status.duration = duration - 1;
+          }
+        }
+      }
+    });
+    this._currentPid = 0;
+    const scheduledProcesses = scheduler.run();
     let next = scheduledProcesses.next();
     while (!next.done) {
       const pid = next.value;
-      this.currentPid = pid;
+      this._currentPid = pid;
       const start = Game.cpu.getUsed();
       this.runProcess(pid);
       const used = Game.cpu.getUsed() - start;
@@ -108,3 +226,5 @@ export class Kernel {
     }
   }
 }
+
+export const kernel = new Kernel();

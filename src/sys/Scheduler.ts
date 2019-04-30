@@ -1,11 +1,22 @@
-import { PID, Process, ProcessDescriptor } from "sys/Kernel";
+import { PID, kernel, ProcessState } from "sys/Kernel";
 
-export class Scheduler {
-  public *run(processList: ProcessDescriptor[]): Iterator<PID> {
-    const queue: PID[] = processList.map((p) => p.pid);
-    for (const pid of queue) {
-      yield pid;
+interface Scheduler {
+  run(): Iterator<PID>;
+}
+
+class SimpleScheduler implements Scheduler {
+  private get processes() {
+    return kernel.processTable;
+  }
+  constructor() {}
+
+  public *run(): Iterator<PID> {
+    for (const { pid, status } of Object.values(this.processes)) {
+      if (status.state === ProcessState.RUNNABLE) {
+        yield pid;
+      }
     }
-    return 0;
   }
 }
+
+export const scheduler = new SimpleScheduler();
